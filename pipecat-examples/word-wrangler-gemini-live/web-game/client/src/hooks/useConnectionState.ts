@@ -1,0 +1,60 @@
+import { useEffect, useCallback } from 'react';
+import {
+  usePipecatClient,
+  usePipecatClientTransportState,
+} from '@pipecat-ai/client-react';
+import { CONNECTION_STATES } from '@/constants/gameConstants';
+import { useConfigurationSettings } from '@/contexts/Configuration';
+
+export function useConnectionState(
+  onConnected?: () => void,
+  onDisconnected?: () => void
+) {
+  const client = usePipecatClient();
+  const transportState = usePipecatClientTransportState();
+  const config = useConfigurationSettings();
+
+  const isConnected = CONNECTION_STATES.ACTIVE.includes(transportState);
+  const isConnecting = CONNECTION_STATES.CONNECTING.includes(transportState);
+  const isDisconnecting =
+    CONNECTION_STATES.DISCONNECTING.includes(transportState);
+
+  // Handle connection changes
+  useEffect(() => {
+    if (isConnected && onConnected) {
+      onConnected();
+    }
+    if (!isConnected && !isConnecting && onDisconnected) {
+      onDisconnected();
+    }
+  }, [isConnected, isConnecting, onConnected, onDisconnected]);
+
+  // Toggle connection state
+  const toggleConnection = useCallback(async () => {
+    if (!client) return;
+
+    try {
+      if (isConnected) {
+        await client.disconnect();
+      } else {
+        await client.startBotAndConnect({
+          endpoint: `api/start`,
+          requestData: {
+            personality: config.personality,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Connection error:', error);
+    }
+  }, [client, config, isConnected]);
+
+  return {
+    isConnected,
+    isConnecting,
+    isDisconnecting,
+    toggleConnection,
+    transportState,
+    client, // Expose the client for direct access when needed
+  };
+}

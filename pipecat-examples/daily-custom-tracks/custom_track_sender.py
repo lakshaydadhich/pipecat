@@ -1,0 +1,79 @@
+#
+# Copyright (c) 2024–2025, Daily
+#
+# SPDX-License-Identifier: BSD 2-Clause License
+#
+
+import argparse
+import os
+import time
+
+from daily import CallClient, CustomAudioSource, CustomAudioTrack, Daily
+from dotenv import load_dotenv
+from pydub import AudioSegment
+
+parser = argparse.ArgumentParser(description="Daily AI SDK Bot Sample")
+parser.add_argument("-u", "--url", type=str, required=False, help="URL of the Daily room to join")
+parser.add_argument(
+    "-i", "--input", type=str, required=True, help="Input audio file (needs 16000 sample rate)"
+)
+
+args, _ = parser.parse_known_args()
+
+audio = AudioSegment.from_mp3(args.input)
+
+raw_bytes = audio.raw_data
+sample_rate = audio.frame_rate
+channels = audio.channels
+
+print(f"Length: {len(raw_bytes)} bytes")
+print(f"Sample rate: {sample_rate}, Channels: {channels}")
+
+load_dotenv(override=True)
+
+# Initialize the Daily context & create call client
+Daily.init()
+
+client = CallClient()
+
+# Join the room and indicate we have a custom track named "pipecat".
+client.join(
+    args.url or os.getenv("DAILY_SAMPLE_ROOM_URL"),
+    client_settings={
+        "publishing": {
+            "camera": False,
+            "microphone": False,
+            "customAudio": {"pipecat": True},
+        },
+    },
+)
+
+# Just sleep for a couple of seconds. To do this well we should really use
+# completions.
+time.sleep(2)
+
+# Create the custom audio source. This is where we will write our audio.
+audio_source = CustomAudioSource(sample_rate, channels)
+audio_track = CustomAudioTrack(audio_source)
+
+# Create an audio track and assign it our audio source.
+client.add_custom_audio_track(track_name="pipecat", audio_track=audio_track)
+
+# Just sleep for a second. To do this well we should really use completions.
+time.sleep(1)
+
+try:
+    # Just write one second of audio until we have read all the file.
+    chunk_size = sample_rate * channels * 2
+    while len(raw_bytes) > 0:
+        chunk = raw_bytes[:chunk_size]
+        raw_bytes = raw_bytes[chunk_size:]
+        audio_source.write_frames(chunk)
+
+except KeyboardInterrupt:
+    client.leave()
+
+# Just sleep for a second. To do this well we should really use completions.
+time.sleep(1)
+
+client.release()

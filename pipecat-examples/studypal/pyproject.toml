@@ -1,0 +1,22 @@
+[project]
+name = "studypal"
+version = "0.1.0"
+description = "Studypal example"
+requires-python = ">=3.10"
+dependencies = [
+    "pipecat-ai[daily,webrtc,websocket,cartesia,openai,silero,deepgram,runner,local-smart-turn-v3]>=0.0.102",
+    "pipecatcloud>=0.2.20",
+    "pypdf>=4.3.1",
+    "tiktoken>=0.12.0"
+]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.404,<2",
+    "ruff>=0.12.11,<1",
+]
+
+[tool.ruff]
+line-length = 100
+[tool.ruff.lint]
+select = ["I"]
